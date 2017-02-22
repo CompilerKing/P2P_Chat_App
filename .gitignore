@@ -92,9 +92,9 @@ ENV/
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 
 # Other files
-.idea\misc.xml
-.idea\modules.xml
-.idea\P2P_Chat_App.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/P2P_Chat_App.iml
 
 # User-specific stuff:
 .idea/**/workspace.xml
