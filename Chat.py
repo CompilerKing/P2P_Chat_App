@@ -9,8 +9,11 @@
 
 import socket
 import threading
+import time
 
-bind_ip = "0.0.0.0"
+
+#cd /d C:\Users\owner\Desktop\COMP429\P2P_Chat_App
+bind_ip = "127.0.0.1"
 bind_port = 9999
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,3 +41,25 @@ while True:
     #ready client thread to handle incoming data
     client_handler = threading.Thread(target=handle_client,args=(client,))
     client_handler.start()
+
+def client_receive(client_socket):
+	data = self.sock.recv(1024)
+	while data is not None:
+		if data:
+			print("Date: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
+			print("Username here: " + data)
+		else:
+			break
+	time.sleep(0)
+
+def username_scan():
+	for i in range(10000):
+		check = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		result = check.connect_ex((remoteServerIP, i))
+		# if result show username, IP and port
+		if result == 1:
+			print("Username: IP:  Port:" + port + "")
+		sock.close()
+
+
+
