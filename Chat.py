@@ -12,6 +12,9 @@ TODO:
     Stop the connection from closing after a single message - move disconnect to separate function (only called on command)
     Create new prompt for when user connects that send list of other users connected
 
+Layout of Interaction with user:
+    User runs client
+    Upon running the client
 """
 
 
@@ -19,7 +22,7 @@ TODO:
 import socket
 import threading
 
-bind_ip = "0.0.0.0"
+bind_ip = "127.0.0.1"
 bind_port = 9999
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -40,6 +43,7 @@ def handle_client(client_socket):
 
     client_socket.close()
 
+print("Welcome to our P2P Chat Client.\n")
 while True:
     client, addr = server.accept()
     print("[*] Accepted connection from: %s:%d" % (addr[0], addr[1]))
