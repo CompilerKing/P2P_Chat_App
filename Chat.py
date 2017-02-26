@@ -27,6 +27,7 @@ import socket
 import threading
 import sys
 import os
+import datetime
 
 bind_ip = "127.0.0.1"
 bind_port = 9997
@@ -55,28 +56,6 @@ def handle_incoming_client(client_socket):
     client_socket.send("Received: %s\n" % request)
     client_socket.close()
 
-def handle_user():
-    print("Handle User Thread Launched")
-    cont = True
-    while cont:
-        command = input(">>> ")
-        if command == 'quit':
-            quit()
-
-def quit():
-    os._exit(0)
-
-print("Welcome to our P2P Chat Client.\n")
-incoming_handler = threading.Thread(target=handle_incoming, args=())
-incoming_handler.start()
-user_handler = threading.Thread(target=handle_user, args=())
-user_handler.start()
-
-
-    #ready client thread to handle incoming data
-    #client_handler = threading.Thread(target=handle_client,args=(client,))
-    #client_handler.start()
-
 def username_check(username):
     for i in range(10000):
         check = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -86,44 +65,58 @@ def username_check(username):
             print("USERNAME TAKEN\r\n")
         sock.close()
 
-def send_and_receive(client_socket):
-    data = self.sock.recv(1024)
-    while data is not None:
-        if data == "h":
-            print("-h : ​List all commands \r\n")
-            print("-l : ​List all users currently online\r\n")
-            print("-lc​: List all chat rooms\r\n")
-            print("-c <chatroom name>:​ enter a specified chatroom\r\n")
-            print("-ce <chatroom name>:​ Disconnect from specified chat room\r\n")
-            print("-e :​ Exit client\r\n")
-            print("-a <contents> : ​Sends message to all connected peers\r\n")
-            print("-s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
-            print("-u “username” : ​Pick username for client\r\n")
-            print("-o <port> : ​Specify the port to listen on\r\n")
-            print("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
-            print("-i “username” : ​Ignore a specific user.\r\n")
-        if data == "e":
-            exit()
-        if data.startswith('a') == True and username is not None:
-            #send messages here
-            print("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "")
-            print("" + username + ": " + data[2:] + "")
-        if data.startswith('s') == True:
-            #send messages to listed recipients here
-            print("Date: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
-            print("" + username + ": " + data[2:] + "")
-        if data.startswith('u') == True:
-            print("Enter yout username:\r\n")
-            username = self.sock.recv(1024)
-            username_check(username)
-        if data.startswith('0') == True:
-            port = data[2:]
-        if data.startswith('p') == True:
-            #private toggle...
-        if data.startswith('i') == True:
-            #ignore command...   
-        else:
-            break
+def handle_user():
+    print("Handle User Thread Launched")
+    print("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "")
+    cont = True
+    while cont:
+        data = input(">>>\r\n")
+        while data is not None:
+            if data == "h":
+                print("-h : ​List all commands \r\n")
+                print("-l : ​List all users currently online\r\n")
+                print("-lc​: List all chat rooms\r\n")
+                print("-c <chatroom name>:​ enter a specified chatroom\r\n")
+                print("-ce <chatroom name>:​ Disconnect from specified chat room\r\n")
+                print("-e :​ Exit client\r\n")
+                print("-a <contents> : ​Sends message to all connected peers\r\n")
+                print("-s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
+                print("-u “username” : ​Pick username for client\r\n")
+                print("-o <port> : ​Specify the port to listen on\r\n")
+                print("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
+                print("-i “username” : ​Ignore a specific user.\r\n")
+            if data == "e":
+                exit()
+            if data.startswith('a') == True and username is not None:
+                #send messages here
+                print("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "")
+                print("" + username + ": " + data[2:] + "")
+            if data.startswith('s') == True:
+                #send messages to listed recipients here
+                print("Date: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
+                print("" + username + ": " + data[2:] + "")
+            if data.startswith('u') == True:
+                print("Enter yout username:\r\n")
+                username = self.sock.recv(1024)
+                username_check(username)
+            if data.startswith('0') == True:
+                port = data[2:]
+            if data.startswith('p') == True:
+                print("Toggle privacy\r\n")
+                #private toggle...
+            if data.startswith('i') == True:
+                print("Ignore feature\r\n")
+                #ignore command...
+            else:
+                break
     time.sleep(0)
 
-def choose_recipients():    
+print("Welcome to our P2P Chat Client.\n")
+incoming_handler = threading.Thread(target=handle_incoming, args=())
+incoming_handler.start()
+user_handler = threading.Thread(target=handle_user, args=())
+user_handler.start()
+
+    #ready client thread to handle incoming data
+    #client_handler = threading.Thread(target=handle_client,args=(client,))
+    #client_handler.start()
