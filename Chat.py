@@ -7,6 +7,15 @@
 # Sam Decanio
 # Philip Porter
 
+"""
+TODO:
+    Stop the connection from closing after a single message - move disconnect to separate function (only called on command)
+    Create new prompt for when user connects that send list of other users connected
+
+"""
+
+
+
 import socket
 import threading
 
