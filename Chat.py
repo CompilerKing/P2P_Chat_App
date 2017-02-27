@@ -7,12 +7,17 @@
 # Sam Decanio
 # Philip Porter
 
+"""
+TODO:
+    remove the carriage return and line break from the end of the port in the users() method - or better yet remove it from join() so it isn't added to the dictionary
+"""
+
 import socket
 import threading
 import os
 
 bind_ip = "127.0.0.1"
-bind_port = 9977
+bind_port = 9975
 connections = {}
 
 # used instead of magic numbers when accessing values in dictionary
@@ -74,6 +79,16 @@ def users(client_send):
     except Exception:
         return False
 
+#this method does the same thing as join() except without validating the username since that has already been done
+def connect_request(request):
+    split = request.split(' ')
+    split_username = split[1]
+    split_ip = split[2]
+    split_port = split[3]
+    print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
+    client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_send.connect((split_ip, int(split_port)))
+    connections[split_username] = [split_ip, split_port, client_send]
 
 def validate_username(username):
     #check if the username meets length requirements, and is not taken
@@ -96,10 +111,8 @@ def handle_incoming_client(client, addr):
     if request.startswith('JOIN '):
         send = join(request)
         users(send)
-    elif request.startswith('GET_USERS'):
-        users(request)
     elif request.startswith('CONNECT '):
-        print(" ")
+        connect_request(request)
     elif request.startswith('DATA\r\n'):
         print("PLACEHOLDER")
     client.close()
