@@ -7,29 +7,19 @@
 # Sam Decanio
 # Philip Porter
 
-"""
-TODO:
-    Stop the connection from closing after a single message - move disconnect to separate function (only called on command)
-    Create new prompt for when user connects that send list of other users connected
-Layout of Interaction with user:
-    User runs client
-    Upon running the client
-handling of local user commands
-handling of commands/messages from other users
-"""
-
-#cd /d C:\Users\owner\Desktop\COMP429\P2P_Chat_App
-import sys
 import socket
 import threading
 import os
+import sys
 import datetime
 
+#cd /d C:\Users\owner\Desktop\COMP429\P2P_Chat_App
+
 bind_ip = "127.0.0.1"
-bind_port = 9984
+bind_port = 9977
 connections = {}
 
-#used instead of magic numbers when accessing values in dictionary
+# used instead of magic numbers when accessing values in dictionary
 IP = 0
 PORT = 1
 SOCKET = 2
@@ -46,51 +36,77 @@ def handle_incoming():
     while True:
         client, addr = server.accept()
         print("[*] Accepted connection from: %s:%d" % (addr[0], addr[1]))
-        new_connection(client, addr)
-        #add to list of connections, return list of current connections
-        # ready client thread to handle incoming data
+        #ready client thread to handle incoming data
         incoming_client_handler = threading.Thread(target=handle_incoming_client, args=(client, addr))
         incoming_client_handler.start()
 
+def join(request):
+    split = request.split(' ')
+    split_username = split[1]
+    split_ip = split[2]
+    split_port = split[3]
+    print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
+    client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_send.connect((split_ip, int(split_port)))
+    #check if the username is valid
+    valid = validate_username(split_username)
+    if  valid == 0:
+        #good username, add to connections list
+        connections[split_username] = [split_ip, split_port, client_send]
+        print("Added: connections[%s] = %s" % (split_username, connections[split_username]))
+        return client_send
+    elif valid == -1:
+        client_send.send("INVALID USERNAME".encode())
+    elif valid == -2:
+        client_send.send("USERNAME TAKEN".encode())
 
-def new_connection(client, addr):
-    #get the username of the new connection
-    request = client.recv(4096).decode('utf-8')
-    if request.startswith('JOIN '):
-        split = request.split(' ')
-        username = split[1]
-        username = username[:len(username)]  # removing the carriage return from end of word
-        print("[*] username: %s" % username)
-        #check if the username is valid
-        if validate_username(client, username):
-            #good username, add to connections list
-            connections[username] = [addr[0], addr[1]]
-            print("added: connections[%s] = %s" % (username, connections[username]))
-            #we must send our list of connections back to this person
+    return False
+
+def users(client_send):
+    print("users called.")
+    #this will display a list of users (basically iterate the dictionary)
+    try:
+        userList = []
+        userList.append('USERS ')
+        for key, value in connections.items():
+            print("key = %s --> values = %s" % (key, value))
+            userList.append('' + key + ' ' + str(value[IP]) + ' ' + str(value[PORT]) + '\r\n')
+        userListStr = ''.join(userList)
+        print(userListStr)
+        client_send.send(userListStr.encode())
+        return True
+    except Exception:
+        return False
 
 
-def validate_username(client, username):
+def validate_username(username):
     #check if the username meets length requirements, and is not taken
     if not(len(username) > 4 and len(username) < 32):
         #we send an invalid username response
-        client.send("INVALID USERNAME1\r\n".encode())
-        return False
+        return -1
     elif username in connections.keys():
-        client.send("USERNAME TAKEN\r\n".encode())
-        return False
+        return -2
 
     for char in username:
         if ord(char) not in range(33, 126):
-            client.send("INVALID USERNAME2\r\n".encode())
-            return False
+            return -1
 
-    return True
+    return 0
 
-#incoming client handling thread
-def handle_incoming_client(client_socket, addr):
-    request = client_socket.recv(4096).decode('utf-8')
+#incoming client handling thread - we need to make this iterative
+def handle_incoming_client(client, addr):
+    request = client.recv(4096).decode('utf-8')
     print("[*] Received: %s" % request)
-    client_socket.close()
+    if request.startswith('JOIN '):
+        send = join(request)
+        users(send)
+    elif request.startswith('GET_USERS'):
+        users(request)
+    elif request.startswith('CONNECT'):
+        print(" ")
+    elif request.startswith('DATA\r\n'):
+        print("PLACEHOLDER")
+    client.close()
 
 #handle user input
 def handle_user():
@@ -117,7 +133,9 @@ def handle_user():
         if data.startswith('a') == True and username is not None:
             #send messages here
             print("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "")
-            print("" + username + ": " + data[2:] + "")
+            print(username + ": " + data[2:] + "")
+            client_socket.send("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "\r\n".encode())
+            client.socket.send(username + ": " + data[2:] + "")
         if data.startswith('s') == True:
             #send messages to listed recipients here
             print("Date: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
@@ -142,6 +160,3 @@ incoming_handler = threading.Thread(target=handle_incoming, args=())
 incoming_handler.start()
 user_handler = threading.Thread(target=handle_user, args=())
 user_handler.start()
-
-
-
