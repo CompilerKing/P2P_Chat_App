@@ -31,6 +31,11 @@ bind_ip = "127.0.0.1"
 bind_port = 9980
 connections = {}
 
+#used instead of magic numbers when accessing values in dictionary
+IP = 0
+PORT = 1
+SOCKET = 2
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((bind_ip, bind_port))
 server.listen(100)
@@ -58,12 +63,12 @@ def join(request, client, addr):
     #check if the username is valid
     if validate_username(client, username):
         #good username, add to connections list
-        connections[username] = [addr[0], addr[1]]
+        connections[username] = [addr[0], addr[1], client]
         print("Added: connections[%s] = %s" % (username, connections[username]))
         return True
     return False
 
-def users(request, client, addr):
+def users(request, client):
     print("users called.")
     #this will display a list of users (basically iterate the dictionary)
     try:
@@ -71,12 +76,12 @@ def users(request, client, addr):
         userList.append('USERS ')
         for key, value in connections.items():
             print("key = %s --> values = %s" % (key, value))
-            userList.append('' + key + ' ' + str(value[0]) + ' ' + str(value[1]) + '\r\n')
+            userList.append('' + key + ' ' + str(value[IP]) + ' ' + str(value[PORT]) + '\r\n')
         userListStr = ''.join(userList)
         print(userListStr)
         client.send(userListStr.encode())
         return True
-    except Exception as ex:
+    except Exception:
         return False
 
 
@@ -97,19 +102,21 @@ def validate_username(client, username):
 
     return True
 
-#incoming client handling thread
+#incoming client handling thread - we need to make this iterative
 def handle_incoming_client(client, addr):
     request = client.recv(4096).decode('utf-8')
     print("[*] Received: %s" % request)
     if request.startswith('JOIN '):
         if join(request, client, addr):
-            if not users(request, client, addr):
+            if not users(request, client):
                 client.send("Error: Failed to retrieve list of active users. Please try again.\r\n")
         else:
             client.send("Error: Failed to validate username and join connection. Please try again.\r\n".encode())
-    elif request.startswith('USERS '):
-        if not users(request, client, addr):
+    elif request.startswith('GET_USERS'):
+        if not users(request, client):
             client.send("Error: Failed to retrieve list of active users. Please try again.\r\n")
+    elif request.startswith(''):
+        print("Placeholder")
     client.close()
 
 #handle user input
