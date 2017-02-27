@@ -15,9 +15,10 @@ TODO:
 import socket
 import threading
 import os
+import re
 
 bind_ip = "127.0.0.1"
-bind_port = 9975
+bind_port = 9974
 connections = {}
 
 # used instead of magic numbers when accessing values in dictionary
@@ -104,6 +105,11 @@ def validate_username(username):
 
     return 0
 
+def data(request):
+    print("PLACEHOLDER")
+    split = request.split('\r\n')
+    print(split)
+
 #incoming client handling thread - we need to make this iterative
 def handle_incoming_client(client, addr):
     request = client.recv(4096).decode('utf-8')
@@ -114,7 +120,8 @@ def handle_incoming_client(client, addr):
     elif request.startswith('CONNECT '):
         connect_request(request)
     elif request.startswith('DATA\r\n'):
-        print("PLACEHOLDER")
+        print("DATA MOTHERFUCKER")
+        data(request)
     client.close()
 
 #handle user input
