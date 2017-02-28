@@ -46,7 +46,7 @@ def handle_incoming_client(client, addr):
             populate_connections(request)
         elif request.startswith('CONNECT'):
             connect_request(request)
-        elif request.startswith('DATA\r\n'):
+        elif request.startswith('DATA'):
             read_data(request)
         else:
             client.close()
@@ -129,23 +129,21 @@ def populate_connections(request):
         c_ip = user_list.pop(0)
         c_port = user_list.pop(0)
 
-
-
 # Function forwards data to local user
 def read_data(data_msg):
 
     # Check msg for charset violations
     # reg for any number of lines
-    headers_reg = '(DATA\r\n([\n\u0032-\u0126\u0128-\u0255]*\r\n)*\r\n)'
-    data_message_reg = headers_reg + '(([\n\u0032-\u0126\u0128-\u0255]*\r\n)*)\r\n.\r\n'
+    headers_reg = 'DATA\r\n([\n\u0020-\u007E\u0080-\u00FF]*\r\n)*\r\n'
+    data_message_reg = headers_reg + '(([\n\u0020-\u007E\u0080-\u00FF]*(\r\n)*)*)\r\n\.\r\n'
 
     match = re.match(data_message_reg, data_msg)
 
     if match is not None:
-        app_GUI.print_to_user(match.group(1).
-                              replace("\n", "").      # Removes all newlines
-                              replace("\r","\n"))     # Makes carriage returns newlines
-                                                      # This cleans up output to GUI
+        print(match.group(2).
+              replace("\n", "").  # Removes all newlines
+              replace("\r", "\n"))  # Makes carriage returns newlines
+        # This cleans up output to GUI
     else:
         print("\nReceived malformed data message from user")
 
@@ -171,7 +169,7 @@ def join_network(request):
     valid = validate_username(split_username)
     if valid == 0:
         # good username, send join request
-        join_msg = "JOIN  " + split_username + " " + split_ip + " " + str(bind_port)
+        join_msg = "JOIN  " + split_username + " " + split_ip + " " + str(bind_port) + "\r\n"
         client_send.send(join_msg.encode())
 
         # Get users request
@@ -193,7 +191,7 @@ def exit_chatroom():
 # Generates basic SMTP message string using content "msg" and list of type string "headers"
 def msg_smtp_gen(msg, headers=None):
     # Check msg for charset violations
-    charset_reg = '([\n\u0032-\u0126\u0128-\u0255]*(\r\n)*)*'
+    charset_reg = '([\n\u0020-\u007E\u0080-\u00FF]*(\r\n)*)*'
 
     # Make sure that msg contains only printable chars
     m_msg = re.match(charset_reg, msg)
@@ -294,8 +292,6 @@ def handle_user():
     print("Handle User Thread Launched")
     print("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "")
 
-    local_username = ""
-
     cont = True
 
     while cont:
@@ -322,7 +318,8 @@ def handle_user():
 
         elif data.startswith("j"):
             # Call join network func
-            join_network(data)
+            if join_network(data):
+                local_username = data.split(' ')[1]
 
         elif data.startswith('a'):
             # Get message
@@ -374,12 +371,15 @@ def handle_user():
             app_GUI.print_to_user("\nEntry: \"" + data + "\" is invalid")
 
 if __name__ == '__main__':
-    bind_ip = "127.0.0.1"
+    bind_ip = "10.31.76.149"
     bind_port = 9977
 
     # Storage for peers
     connections = {}
     connections_lock = threading.Lock()
+
+    # User data
+    local_username = ""
 
     # Misc client config data
     ignored_users = list()
@@ -409,5 +409,11 @@ if __name__ == '__main__':
     # Thread for handling user input           :: Local User interface Thread
     user_handler = threading.Thread(target=handle_user, args=())
     user_handler.start()
+
+    # Join threads
+    incoming_handler.join()
+    user_handler.join()
+    app_GUI.join()
+
 
 
