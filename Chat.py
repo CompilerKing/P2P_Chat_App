@@ -124,22 +124,24 @@ def users(client_send):
 def populate_connections(request):
     user_list = list(request.split(' ')[1:])
 
+    print(user_list)
+
     while (len(user_list) > 0):
         user = user_list.pop(0)
         c_ip = user_list.pop(0)
-        c_port = user_list.pop(0)
+        c_port = user_list.pop(0).replace("\r\n", "")
 
-        if user is not local_username:
-            if user not in connections.keys():
-                # Open socket
-                client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                client_send.connect((c_ip, int(c_port)))
 
-                # Add to connections
-                connections[user] = [c_ip, c_port, client_send]
+        if user not in connections.keys():
+            # Open socket
+            client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_send.connect((c_ip, int(c_port)))
 
-                # Send connect request
-                client_send.send("CONNECT " + user + " " + c_ip + " " + c_port + "\r\n")
+            # Add to connections
+            connections[user] = [c_ip, c_port, client_send]
+
+            # Send connect request
+            client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
 
 # Function forwards data to local user
 def read_data(data_msg):
@@ -172,10 +174,11 @@ def join_network(request):
     split = request.split(' ')
     split_username = split[1]
     split_ip = split[2]
+    split_port = split[3]
     print("Begin join attempt")
     print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, bind_port))
     client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_send.connect((split_ip, bind_port))
+    client_send.connect((split_ip, int(split_port)))
 
     # check if the username is valid
     valid = validate_username(split_username)
@@ -183,6 +186,7 @@ def join_network(request):
         # good username, send join request
         join_msg = "JOIN  " + split_username + " " + split_ip + " " + str(bind_port) + "\r\n"
         client_send.send(join_msg.encode())
+        client_send.close()
 
         # Get users request
         # wait 1 sec?
