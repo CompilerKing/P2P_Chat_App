@@ -129,6 +129,18 @@ def populate_connections(request):
         c_ip = user_list.pop(0)
         c_port = user_list.pop(0)
 
+        if user is not local_username:
+            if user not in connections.keys():
+                # Open socket
+                client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                client_send.connect((c_ip, int(c_port)))
+
+                # Add to connections
+                connections[user] = [c_ip, c_port, client_send]
+
+                # Send connect request
+                client_send.send("CONNECT " + user + " " + c_ip + " " + c_port + "\r\n")
+
 # Function forwards data to local user
 def read_data(data_msg):
 
@@ -308,7 +320,6 @@ def handle_user():
             app_GUI.print_to_user("-e :​ Exit client\r\n")
             app_GUI.print_to_user("-a <contents> : ​Sends message to all connected peers\r\n")
             app_GUI.print_to_user("-s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
-            app_GUI.print_to_user("-u “username” : ​Pick username for client\r\n")
             app_GUI.print_to_user("-o <port> : ​Specify the port to listen on\r\n")
             app_GUI.print_to_user("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
             app_GUI.print_to_user("-i “username” : ​Ignore a specific user.\r\n\r\n")
@@ -345,10 +356,6 @@ def handle_user():
             # Client terminal echo
             print("\nDate: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
             print("\n" + username + ": " + data[2:] + "")
-
-        elif data.startswith('u'):
-            username = data.split(' ')[1]
-            set_username(username)
 
         elif data.startswith('o'):
             new_port = int(data.split(' ')[1])
