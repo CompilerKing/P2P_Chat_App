@@ -9,34 +9,16 @@
 
 import socket
 import threading
+import multiprocessing
 import os
 import sys
 import re
 import datetime
+import functools
+
+from P2P_chat_UI import Chat_UI_Process
 
 #cd /d C:\Users\owner\Desktop\COMP429\P2P_Chat_App
-
-bind_ip = "127.0.0.1"
-bind_port = 9977
-
-# Storage for peers
-connections = {}
-connections_lock = threading.Lock()
-
-# Misc client config data
-ignored_users = list()
-headers = list()
-
-# used instead of magic numbers when accessing values in dictionary
-IP = 0
-PORT = 1
-SOCKET = 2
-
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind((bind_ip, bind_port))
-server.listen(100)
-
-print("[*] Listening on %s:%d" % (bind_ip, bind_port))
 
 #waiting for incoming clients
 def handle_incoming():
@@ -140,11 +122,8 @@ def users(client_send):
 
 # Defined Client functions
 # /////////////////////////
-def disp_help():
-    print("DERP")
-
 def list_users():
-    print("DERP")
+    app_GUI.print_to_user(functools.reduce(lambda x,y: x + "\n" +  y, connections.keys()))
 
 def list_chatrooms():
     print("DERP")
@@ -153,9 +132,6 @@ def enter_chatroom():
     print("DERP")
 
 def exit_chatroom():
-    print("DERP")
-
-def exit():
     print("DERP")
 
 # Helper func
@@ -212,7 +188,7 @@ def send_all(msg):
         connections_lock.release()
 
     else:
-        print("\nERROR: Message contains invalid characters\n")
+        app_GUI.print_to_user("\nERROR: Message contains invalid characters\n")
         return -1
 
 def send_user(msg, user):
@@ -227,14 +203,14 @@ def send_user(msg, user):
             connections[user][SOCKET].send(smtp_msg.encode())
 
         else:
-            print("\nERROR: User: \"%s\" does not exist\n" % user)
+            app_GUI.print_to_user("\nERROR: User: \"%s\" does not exist\n" % user)
             return -1
 
         # Release lock on connections
         connections_lock.release()
 
     else:
-        print("\nERROR: Message contains invalid characters\n")
+        app_GUI.print_to_user("\nERROR: Message contains invalid characters\n")
         return -1
 
 def set_username(name):
@@ -246,12 +222,12 @@ def set_listen_port(port):
 def toggle_privacy_status():
     if "PRIVATE" in headers:
         headers.remove("PRIVATE")
-        print("\nUser now public.\n")
+        app_GUI.print_to_user("\nUser now public.\n")
     else:
         headers.append("PRIVATE")
-        print("\nUser now Private.\n")
+        app_GUI.print_to_user("\nUser now Private.\n")
 
-def ignore_user():
+def ignore_user(username):
     print("DERP")
 
 # END client functions
@@ -262,28 +238,33 @@ def ignore_user():
 def handle_user():
     print("Handle User Thread Launched")
     print("Date: " + datetime.datetime.now().strftime('%H:%M:%S') + "")
+
+    local_username = ""
+
     cont = True
+
     while cont:
-        data = input(">>> ")
+        data = app_GUI.get_output_string()
+        print("INPUT FROM GUI \"" + data + "\"")
 
         if data == "h":
-            print("-h : ​List all commands \r\n")
-            print("-l : ​List all users currently online\r\n")
-            print("-lc​: List all chat rooms\r\n")
-            print("-c <chatroom name>:​ enter a specified chatroom\r\n")
-            print("-ce <chatroom name>:​ Disconnect from specified chat room\r\n")
-            print("-e :​ Exit client\r\n")
-            print("-a <contents> : ​Sends message to all connected peers\r\n")
-            print("-s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
-            print("-u “username” : ​Pick username for client\r\n")
-            print("-o <port> : ​Specify the port to listen on\r\n")
-            print("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
-            print("-i “username” : ​Ignore a specific user.\r\n")
+            app_GUI.print_to_user("-h : ​List all commands \r\n")
+            app_GUI.print_to_user("-l : ​List all users currently online\r\n")
+            app_GUI.print_to_user("-lc​: List all chat rooms\r\n")
+            app_GUI.print_to_user("-c <chatroom name>:​ enter a specified chatroom\r\n")
+            app_GUI.print_to_user("-ce <chatroom name>:​ Disconnect from specified chat room\r\n")
+            app_GUI.print_to_user("-e :​ Exit client\r\n")
+            app_GUI.print_to_user("-a <contents> : ​Sends message to all connected peers\r\n")
+            app_GUI.print_to_user("-s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
+            app_GUI.print_to_user("-u “username” : ​Pick username for client\r\n")
+            app_GUI.print_to_user("-o <port> : ​Specify the port to listen on\r\n")
+            app_GUI.print_to_user("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
+            app_GUI.print_to_user("-i “username” : ​Ignore a specific user.\r\n")
 
-        if data == "e":
+        elif data == "e":
             sys.exit()
 
-        if data.startswith('a') == True:
+        elif data.startswith('a') == True:
             # Get message
             message = data.split(' ')[1]
 
@@ -292,9 +273,9 @@ def handle_user():
 
             # Client terminal echo
             print("\nDate: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
-            print("\n" + username + ": " + data[2:] + "")
+            print("\nSend to all users.\n")
 
-        if data.startswith('s') == True:
+        elif data.startswith('s') == True:
             # Get username
             username = data.split(' ')[1]
 
@@ -308,36 +289,65 @@ def handle_user():
             print("\nDate: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
             print("\n" + username + ": " + data[2:] + "")
 
-        if data.startswith('u') == True:
+        elif data.startswith('u') == True:
             username = data.split(' ')[1]
             set_username(username)
 
-        if data.startswith('o') == True:
+        elif data.startswith('o') == True:
             new_port = int(data.split(' ')[1])
             set_listen_port(new_port)
 
-        if data.startswith('p') == True:
+        elif data.startswith('p') == True:
             print("\nToggle privacy\n")
             #private toggle...
 
             toggle_privacy_status()
 
-        if data.startswith('i') == True:
+        elif data.startswith('i') == True:
             print("Ignore feature\r\n")
             #ignore command...
 
             username = data.split(' ')[1]
             ignore_user(username)
-
         else:
-            break
+            print("\nINVALID selection\n")
+            app_GUI.print_to_user("\nEntry: \"" + data + "\" is invalid")
 
-print("Welcome to our P2P Chat Client.\n")
+if __name__ == '__main__':
+    bind_ip = "127.0.0.1"
+    bind_port = 9977
 
-# Thread for handling incoming connections :: Server thread
-incoming_handler = threading.Thread(target=handle_incoming, args=())
-incoming_handler.start()
+    # Storage for peers
+    connections = {}
+    connections_lock = threading.Lock()
 
-# Thread for handling user input           :: Local User interface Thread
-user_handler = threading.Thread(target=handle_user, args=())
-user_handler.start()
+    # Misc client config data
+    ignored_users = list()
+    headers = list()
+
+    # used instead of magic numbers when accessing values in dictionary
+    IP = 0
+    PORT = 1
+    SOCKET = 2
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind((bind_ip, bind_port))
+    server.listen(100)
+
+    print("[*] Listening on %s:%d" % (bind_ip, bind_port))
+
+    print("Welcome to our P2P Chat Client.\n")
+
+    # Thread for handling incoming connections :: Server thread
+    incoming_handler = threading.Thread(target=handle_incoming, args=())
+    incoming_handler.start()
+
+    # GUI process
+    app_GUI = Chat_UI_Process()
+    app_GUI.start()
+
+    # Thread for handling user input           :: Local User interface Thread
+    user_handler = threading.Thread(target=handle_user, args=())
+    user_handler.start()
+
+
