@@ -9,12 +9,11 @@
 
 import socket
 import threading
-import multiprocessing
-import os
 import sys
 import re
 import datetime
 import functools
+from time import sleep
 
 from P2P_chat_UI import Chat_UI_Process
 
@@ -38,16 +37,19 @@ def handle_incoming_client(client, addr):
 
         request = client.recv(4096).decode('utf-8')
         print("[*] Received: %s" % request)
-        if request.startswith('JOIN '):
+        if request.startswith('JOIN'):
             send = join(request)
             users(send)
         elif request.startswith('GET_USERS'):
             users(request)
+        elif request.startswith('USERS'):
+            populate_connections(request)
         elif request.startswith('CONNECT'):
-            print(" ")
+            connect_request(request)
         elif request.startswith('DATA\r\n'):
-            print("PLACEHOLDER")
-        client.close()
+            read_data(request)
+        else:
+            client.close()
 
 def validate_username(username):
     # check if the username meets length requirements, and is not taken
@@ -117,6 +119,37 @@ def users(client_send):
         return True
     except Exception:
         return False
+
+# Function to set connections dict
+def populate_connections(request):
+    user_list = list(request.split(' ')[1:])
+
+    while (len(user_list) > 0):
+        user = user_list.pop(0)
+        c_ip = user_list.pop(0)
+        c_port = user_list.pop(0)
+
+
+
+# Function forwards data to local user
+def read_data(data_msg):
+
+    # Check msg for charset violations
+    # reg for any number of lines
+    headers_reg = '(DATA\r\n([\n\u0032-\u0126\u0128-\u0255]*\r\n)*\r\n)'
+    data_message_reg = headers_reg + '(([\n\u0032-\u0126\u0128-\u0255]*\r\n)*)\r\n.\r\n'
+
+    match = re.match(data_message_reg, data_msg)
+
+    if match is not None:
+        app_GUI.print_to_user(match.group(1).
+                              replace("\n", "").      # Removes all newlines
+                              replace("\r","\n"))     # Makes carriage returns newlines
+                                                      # This cleans up output to GUI
+    else:
+        print("\nReceived malformed data message from user")
+
+
 # /////////////////////////
 # END protocol functions
 
@@ -124,6 +157,28 @@ def users(client_send):
 # /////////////////////////
 def list_users():
     app_GUI.print_to_user(functools.reduce(lambda x,y: x + "\n" +  y, connections.keys()))
+
+def join_network(request):
+    split = request.split(' ')
+    split_username = split[1]
+    split_ip = split[2]
+    print("Begin join attempt")
+    print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, bind_port))
+    client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_send.connect((split_ip, bind_port))
+
+    # check if the username is valid
+    valid = validate_username(split_username)
+    if valid == 0:
+        # good username, send join request
+        join_msg = "JOIN  " + split_username + " " + split_ip + " " + str(bind_port)
+        client_send.send(join_msg.encode())
+
+        # Get users request
+        # wait 1 sec?
+        sleep(1)
+
+    return True
 
 def list_chatrooms():
     print("DERP")
@@ -138,7 +193,7 @@ def exit_chatroom():
 # Generates basic SMTP message string using content "msg" and list of type string "headers"
 def msg_smtp_gen(msg, headers=None):
     # Check msg for charset violations
-    charset_reg = '[\n\u0032-\u0126\u0128-\u0255]*'
+    charset_reg = '([\n\u0032-\u0126\u0128-\u0255]*(\r\n)*)*'
 
     # Make sure that msg contains only printable chars
     m_msg = re.match(charset_reg, msg)
@@ -165,7 +220,7 @@ def msg_smtp_gen(msg, headers=None):
                 smtp_msg += header + "\r\n"
 
         # Empty line, add msg, and terminate
-        smtp_msg += "\r\n" + msg + ".\r\n"
+        smtp_msg += "\r\n" + msg + "\r\n.\r\n"
 
         return smtp_msg
     else:
@@ -251,6 +306,7 @@ def handle_user():
             app_GUI.print_to_user("-h : ​List all commands \r\n")
             app_GUI.print_to_user("-l : ​List all users currently online\r\n")
             app_GUI.print_to_user("-lc​: List all chat rooms\r\n")
+            app_GUI.print_to_user("-j​: <username, IP> join chat network at IP\r\n")
             app_GUI.print_to_user("-c <chatroom name>:​ enter a specified chatroom\r\n")
             app_GUI.print_to_user("-ce <chatroom name>:​ Disconnect from specified chat room\r\n")
             app_GUI.print_to_user("-e :​ Exit client\r\n")
@@ -259,12 +315,16 @@ def handle_user():
             app_GUI.print_to_user("-u “username” : ​Pick username for client\r\n")
             app_GUI.print_to_user("-o <port> : ​Specify the port to listen on\r\n")
             app_GUI.print_to_user("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
-            app_GUI.print_to_user("-i “username” : ​Ignore a specific user.\r\n")
+            app_GUI.print_to_user("-i “username” : ​Ignore a specific user.\r\n\r\n")
 
         elif data == "e":
             sys.exit()
 
-        elif data.startswith('a') == True:
+        elif data.startswith("j"):
+            # Call join network func
+            join_network(data)
+
+        elif data.startswith('a'):
             # Get message
             message = data.split(' ')[1]
 
@@ -275,7 +335,7 @@ def handle_user():
             print("\nDate: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
             print("\nSend to all users.\n")
 
-        elif data.startswith('s') == True:
+        elif data.startswith('s'):
             # Get username
             username = data.split(' ')[1]
 
@@ -289,15 +349,15 @@ def handle_user():
             print("\nDate: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
             print("\n" + username + ": " + data[2:] + "")
 
-        elif data.startswith('u') == True:
+        elif data.startswith('u'):
             username = data.split(' ')[1]
             set_username(username)
 
-        elif data.startswith('o') == True:
+        elif data.startswith('o'):
             new_port = int(data.split(' ')[1])
             set_listen_port(new_port)
 
-        elif data.startswith('p') == True:
+        elif data.startswith('p'):
             print("\nToggle privacy\n")
             #private toggle...
 

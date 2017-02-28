@@ -8,8 +8,22 @@ import multiprocessing
 class ChatUI(tk.Frame):
     def __init__(self, user_out_queue, client_in_queue, master=None):
         tk.Frame.__init__(self, master)
-        self.grid()
+
+        # Make widgets
         self.createWidgets()
+
+        # Set grid weights
+        # More weight means that the row or column grows faster
+
+        # Set cols
+        tk.Grid.columnconfigure(self, 0, weight=1)
+        tk.Grid.columnconfigure(self, 1, weight=0)
+
+        # Set rows
+        tk.Grid.rowconfigure(self, 0, weight=10)
+        tk.Grid.rowconfigure(self, 1, weight=1)
+
+        self.grid(sticky=tk.N+tk.S+tk.E+tk.W)
 
         # Queues
         # To Client
@@ -39,21 +53,21 @@ class ChatUI(tk.Frame):
 
     def createWidgets(self):
         # Client output textbox
-        self.client_out = tk.Text(self, width=80, height=20,)
-        self.client_out.grid(sticky=tk.N + tk.S, row=0, column=0)
+        self.client_out = tk.Text(self, width=80, height=20)
+        self.client_out.grid(sticky=tk.N + tk.S + tk.W + tk.E, row=0, column=0)
 
         # List of users
-        self.client_users = tk.Text(self, width=20, height=20,)
-        self.client_users.grid(sticky=tk.N + tk.S, row=0, column=1)
+        self.client_users = tk.Text(self, width=20, height=20)
+        self.client_users.grid(sticky=tk.N + tk.S + tk.E, row=0, column=1)
 
         # User input textbox
         self.user_in = tk.Text(self, width=80,height=2,)
-        self.user_in.grid(sticky=tk.SW, row=1, column=0)
+        self.user_in.grid(sticky=tk.S + tk.N + tk.E + tk.W, row=1, column=0)
 
         # Send button
         self.send_button = tk.Button(self, text='Send',width=22,
                                      height=2, command=self.push_user_input_text)
-        self.send_button.grid(sticky=tk.SE, row=1, column=1)
+        self.send_button.grid(sticky=tk.S + tk.N, row=1, column=1)
 
 
 class Chat_UI_Process(multiprocessing.Process):
@@ -75,9 +89,14 @@ class Chat_UI_Process(multiprocessing.Process):
     def run(self):
         # TK loop and window setup
         self.top = tk.Tk()
-        self.app = ChatUI(self.user_out_queue, self.client_in_queue,master=self.top)
 
-        self.top.resizable(width=False, height=False)
+        # Make UI
+        self.app = ChatUI(self.user_out_queue, self.client_in_queue, master=self.top)
+
+        self.top.resizable(width=True, height=True)
+        self.top.columnconfigure(0, weight=1)
+        self.top.rowconfigure(0, weight=1)
+
         self.app.master.title('P2P chat client')
 
         # Timer to check for more client output
