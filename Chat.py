@@ -45,7 +45,7 @@ def handle_incoming_client(client, addr):
         print("[*] Received: %s" % request)
         if request.startswith('JOIN'):
             send = join(request)
-            if send[0] is not False:
+            if (send[0]) != False:
                 users(send[0])
                 remote_username = send[1]
         elif request.startswith('GET_USERS'):
@@ -86,7 +86,7 @@ def join(request):
         # good username, add to connections list
         connections[split_username] = [split_ip, split_port, client_send]
         print("Added: connections[%s] = %s" % (split_username, connections[split_username]))
-        return {client_send, split_username}
+        return (client_send, split_username)
     elif valid == -1:
         client_send.send("INVALID USERNAME\r\n".encode())
     elif valid == -2:
