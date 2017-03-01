@@ -6,7 +6,8 @@
 # Vlad Synnes
 # Sam Decanio
 # Philip Porter
-
+import multiprocessing
+from multiprocessing import Process
 import socket
 import threading
 import sys
@@ -405,6 +406,7 @@ if __name__ == '__main__':
     bind_ip = "127.0.0.1"
     bind_port = 9977
 
+    multiprocessing.set_start_method('forkserver')
     # Storage for peers
     connections = {}
     connections_lock = threading.Lock()
