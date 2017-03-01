@@ -86,7 +86,9 @@ def join(request):
         if valid == 0:
             # good username, add to connections list
             connections[split_username] = [split_ip, split_port, client_send]
-            print("Added: connections[%s] = %s" % (split_username, connections[split_username]))
+            print("Added: connections[%s] = %s:%d" % (split_username,
+                                                      connections[split_username][IP],
+                                                      connections[split_username][PORT]))
             return client_send, split_username
         elif valid == -1:
             client_send.send("INVALID USERNAME\r\n".encode())
@@ -118,8 +120,9 @@ def users(client_send):
     print("users called.")
     # this will display a list of users (basically iterate the dictionary)
     try:
-        userListStr = functools.reduce(lambda x, y: x + "%s %s %s \r\n" %(y, connections[y][IP], connections[y][PORT]),
-                                       connections.keys())
+        userListStr = "USERS"
+        userListStr += functools.reduce(lambda x, y: x + " %s %s %d \r\n" %(y, connections[y][IP],
+                                                                          connections[y][PORT]),connections.keys())
         print(userListStr)
         client_send.send(userListStr.encode())
         return True
@@ -177,7 +180,7 @@ def read_data(data_msg, sender_name):
 # Defined Client functions
 # /////////////////////////
 def list_users():
-    app_GUI.print_to_user("\n" + functools.reduce(lambda x,y: "\n" + x + y, connections.keys()))
+    app_GUI.print_to_user("\n" + functools.reduce(lambda x,y: "\n" + x +"\n" + y, connections.keys()))
 
 def join_network(request):
     split = request.split(' ')
