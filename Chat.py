@@ -14,6 +14,7 @@ import sys
 import re
 import datetime
 import functools
+import os
 from time import sleep
 
 from P2P_chat_UI import Chat_UI_Process
@@ -56,7 +57,7 @@ def handle_incoming_client(client, addr):
         elif request.startswith('DATA'):
             read_data(request, remote_username)
         else:
-            client.close()
+            sleep(1)
 
 def validate_username(username):
     # check if the username meets length requirements, and is not taken
@@ -406,7 +407,9 @@ if __name__ == '__main__':
     bind_ip = "127.0.0.1"
     bind_port = 9977
 
-    multiprocessing.set_start_method('forkserver')
+    if os.name != 'nt':
+        multiprocessing.set_start_method('forkserver')
+
     # Storage for peers
     connections = {}
     connections_lock = threading.Lock()
