@@ -120,9 +120,11 @@ def users(client_send):
     print("users called.")
     # this will display a list of users (basically iterate the dictionary)
     try:
-        userListStr = "USERS"
-        userListStr += functools.reduce(lambda x, y: x + " %s %s %d \r\n" %(y, connections[y][IP],
-                                                                          connections[y][PORT]),connections.keys())
+        userListStr = "USERS "
+
+        for key in connections.keys():
+            userListStr += "%s %s %d\r\n" % (key, connections[key][IP], connections[key][PORT])
+
         print(userListStr)
         client_send.send(userListStr.encode())
         return True
@@ -131,7 +133,7 @@ def users(client_send):
 
 # Function to set connections dict
 def populate_connections(request):
-    user_list_lines = request.replace('USERS ', '').split("\r\n")
+    user_list_lines = request.replace('USERS ', '').split("\r\n")[:-1]
 
     while (len(user_list_lines) > 0):
         match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n',
@@ -152,7 +154,7 @@ def populate_connections(request):
                 # Send connect request
                 client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
         else:
-            print("\nIll formed USERS message" % request)
+            print("\nIll formed USERS message %s" % request)
 
     # Update gui to reflect new connections
     app_GUI.set_user_list(connections.keys())
