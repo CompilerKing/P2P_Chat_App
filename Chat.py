@@ -164,13 +164,6 @@ def read_data(data_msg, sender_name, addr):
 
     match = re.match(data_message_reg, data_msg)
     if match is not None:
-        if sender_name == "":
-            # Try to lookup name
-            for key in connections.keys():
-                if connections[key][0] == addr[0] and connections[key][1] == addr[1]:
-                    sender_name = key
-                    break
-
         app_GUI.print_to_user(("\n[%s]:"%sender_name) + match.group(2).
               replace("\n", "").  # Removes all newlines
               replace("\r", "\n"))  # Makes carriage returns newlines
