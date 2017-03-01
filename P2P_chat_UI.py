@@ -121,7 +121,7 @@ class Chat_UI_Process(multiprocessing.Process):
         self.client_in_queue.put(msg)
 
     def set_user_list(self, user_list):
-        self.print_to_user("\u0001" + reduce(lambda x,y: x + y + "\r\n", user_list))
+        self.print_to_user("\u0001" + reduce(lambda x,y: "\r\n" + x + "\r\n" + y, user_list))
 
 # Unit test
 if __name__ == '__main__':

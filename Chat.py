@@ -135,8 +135,11 @@ def users(client_send):
 def populate_connections(request):
     user_list_lines = request.replace('USERS ', '').split("\r\n")[:-1]
 
-    while (len(user_list_lines) > 0):
-        match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n',
+    print(user_list_lines)
+
+    cont = True
+    while (len(user_list_lines) > 0) and cont:
+        match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})',
                          user_list_lines.pop(0))
         if match is not None:
             user = match.group(1)
@@ -155,6 +158,7 @@ def populate_connections(request):
                 client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
         else:
             print("\nIll formed USERS message %s" % request)
+            cont = False
 
     # Update gui to reflect new connections
     app_GUI.set_user_list(connections.keys())
