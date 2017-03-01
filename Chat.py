@@ -85,7 +85,7 @@ def join(request):
         valid = validate_username(split_username)
         if valid == 0:
             # good username, add to connections list
-            connections[split_username] = [split_ip, split_port, client_send]
+            connections[split_username] = [split_ip, int(split_port), client_send]
             print("Added: connections[%s] = %s:%d" % (split_username,
                                                       connections[split_username][IP],
                                                       connections[split_username][PORT]))
@@ -110,7 +110,7 @@ def connect_request(request):
         print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
         client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_send.connect((split_ip, int(split_port)))
-        connections[split_username] = [split_ip, split_port, client_send]
+        connections[split_username] = [split_ip, int(split_port), client_send]
         return split_username
     else:
         print("\nIll formed request: %s" % request)
@@ -131,7 +131,7 @@ def users(client_send):
 
 # Function to set connections dict
 def populate_connections(request):
-    user_list_lines = list(request[2:].split('\r\n'))
+    user_list_lines = request.replace('USERS ', '').split("\r\n")
 
     while (len(user_list_lines) > 0):
         match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n',
@@ -147,7 +147,7 @@ def populate_connections(request):
                 client_send.connect((c_ip, int(c_port)))
 
                 # Add to connections
-                connections[user] = [c_ip, c_port, client_send]
+                connections[user] = [c_ip, int(c_port), client_send]
 
                 # Send connect request
                 client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
