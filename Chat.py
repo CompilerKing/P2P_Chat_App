@@ -198,14 +198,12 @@ def join_network(request):
     # check if the username is valid
     valid = validate_username(split_username)
     if valid == 0:
+        #update local username
+        local_username = split_username
         # good username, send join request
         join_msg = "JOIN " + split_username + " " + split_ip + " " + str(bind_port) + "\r\n"
         client_send.send(join_msg.encode())
         client_send.close()
-
-        # Get users request
-        # wait 1 sec?
-        sleep(1)
 
     return True
 
@@ -465,7 +463,7 @@ if __name__ == '__main__':
     user_handler.start()
 
     # Signal client readiness to user
-    app_GUI.print_to_user("\nClient Initialised and ready:")
+    app_GUI.print_to_user("\nClient Initialized and ready:")
 
     # Join process
     app_GUI.join()
