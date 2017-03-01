@@ -92,7 +92,7 @@ def join(request):
     elif valid == -2:
         client_send.send("USERNAME TAKEN\r\n".encode())
 
-    return False
+    return {False, None}
 
 # this function does the same thing as join() except without validating the username since that has
 # already been done
@@ -127,10 +127,10 @@ def populate_connections(request):
     print(user_list)
 
     while (len(user_list) > 0):
+
         user = user_list.pop(0)
         c_ip = user_list.pop(0)
-        c_port = user_list.pop(0).replace("\r\n", "")
-
+        c_port = user_list.pop(0)
 
         if user not in connections.keys():
             # Open socket
