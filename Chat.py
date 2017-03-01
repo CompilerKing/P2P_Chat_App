@@ -60,17 +60,12 @@ def handle_incoming_client(client, addr):
             sleep(1)
 
 def validate_username(username):
-    # check if the username meets length requirements, and is not taken
-    if not (len(username) > 4 and len(username) < 32):
-        # we send an invalid username response
-        return -1
-    elif username in connections.keys():
+    if username in connections.keys():
         return -2
-
-    for char in username:
-        if ord(char) not in range(33, 126):
+    else:
+        m = re.match('[\u0021-\u0056]{4,32}', username )
+        if m is None:
             return -1
-
     return 0
 
 # Defined protocol functions
