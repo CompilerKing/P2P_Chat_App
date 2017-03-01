@@ -4,6 +4,7 @@
 
 import tkinter as tk
 import multiprocessing
+from functools import reduce
 
 class ChatUI(tk.Frame):
     def __init__(self, user_out_queue, client_in_queue, master=None):
@@ -42,7 +43,12 @@ class ChatUI(tk.Frame):
         if self.client_in_queue.empty() is False:
 
             while self.client_in_queue.empty() is False:
-                self.client_out.insert(tk.END, self.client_in_queue.get())
+                txt_in = self.client_in_queue.get()
+                if txt_in.startswith('\u0001'):
+                    self.client_users.delete(1.0, tk.END)
+                    self.client_users.insert(tk.END, txt_in[1:])
+                else:
+                    self.client_out.insert(tk.END, txt_in)
 
             # Shift down text
             self.client_out.see(tk.END)
@@ -100,7 +106,7 @@ class Chat_UI_Process(multiprocessing.Process):
         self.app.master.title('P2P chat client')
 
         # Timer to check for more client output
-        self.top.after(250, self.app.append_client_output_loop())
+        self.top.after(250, self.app.append_client_output_loop)
 
         # Set window to kill client on close
         self.top.wm_protocol("WM_DELETE_WINDOW", self.kill_client)
@@ -113,6 +119,9 @@ class Chat_UI_Process(multiprocessing.Process):
 
     def print_to_user(self, msg):
         self.client_in_queue.put(msg)
+
+    def set_user_list(self, user_list):
+        self.print_to_user("\u0001" + reduce(lambda x,y: x + y + "\r\n", user_list))
 
 # Unit test
 if __name__ == '__main__':
