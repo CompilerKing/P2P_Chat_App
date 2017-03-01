@@ -185,15 +185,12 @@ def join_network(request):
     client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_send.connect((split_ip, int(split_port)))
 
-    # check if the username is valid
-    valid = validate_username(split_username)
-    if valid == 0:
-        #update local username
-        local_username = split_username
-        # good username, send join request
-        join_msg = "JOIN " + split_username + " " + bind_ip + " " + str(bind_port) + "\r\n"
-        client_send.send(join_msg.encode())
-        client_send.close()
+    #update local username
+    local_username = split_username
+    # good username, send join request
+    join_msg = "JOIN " + split_username + " " + bind_ip + " " + str(bind_port) + "\r\n"
+    client_send.send(join_msg.encode())
+    client_send.close()
 
     return True
 
