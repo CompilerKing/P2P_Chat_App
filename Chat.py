@@ -86,13 +86,13 @@ def join(request):
         # good username, add to connections list
         connections[split_username] = [split_ip, split_port, client_send]
         print("Added: connections[%s] = %s" % (split_username, connections[split_username]))
-        return (client_send, split_username)
+        return client_send, split_username
     elif valid == -1:
         client_send.send("INVALID USERNAME\r\n".encode())
     elif valid == -2:
         client_send.send("USERNAME TAKEN\r\n".encode())
 
-    return {False, None}
+    return False, None
 
 # this function does the same thing as join() except without validating the username since that has
 # already been done
