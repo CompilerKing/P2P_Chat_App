@@ -112,12 +112,8 @@ def users(client_send):
     print("users called.")
     # this will display a list of users (basically iterate the dictionary)
     try:
-        userList = []
-        userList.append('USERS ')
-        for key, value in connections.items():
-            print("key = %s --> values = %s" % (key, value))
-            userList.append(' ' + key + ' ' + str(value[IP]) + ' ' + str(value[PORT]) + '\r\n')
-        userListStr = ''.join(userList)
+        userListStr = functools.reduce(lambda x, y: x + "%s %s %s \r\n" %(y, connections[y][IP], connections[y][PORT]),
+                                       connections.keys())
         print(userListStr)
         client_send.send(userListStr.encode())
         return True
