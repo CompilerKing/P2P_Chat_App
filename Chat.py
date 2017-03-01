@@ -183,7 +183,7 @@ def read_data(data_msg, sender_name, addr):
 # Defined Client functions
 # /////////////////////////
 def list_users():
-    app_GUI.print_to_user(functools.reduce(lambda x,y: "\n" + x + y, connections.keys()))
+    app_GUI.print_to_user("\n" + functools.reduce(lambda x,y: "\n" + x + y, connections.keys()))
 
 def join_network(request):
     split = request.split(' ')
