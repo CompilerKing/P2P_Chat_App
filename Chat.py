@@ -63,7 +63,7 @@ def validate_username(username):
     if username in connections.keys():
         return -2
     else:
-        m = re.match('[\u0021-\u0056]{4,32}', username )
+        m = re.match('[\u0021-\u007E]{4,32}', username )
         if m is None:
             return -1
     return 0
@@ -183,6 +183,7 @@ def join_network(request):
 
     #update local username
     local_username = split_username
+
     # good username, send join request
     join_msg = "JOIN " + split_username + " " + bind_ip + " " + str(bind_port) + "\r\n"
     client_send.send(join_msg.encode())
