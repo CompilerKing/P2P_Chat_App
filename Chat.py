@@ -73,7 +73,7 @@ def validate_username(username):
 
 # Function join validates join request and user name, then sends a list of peers to new peer
 def join(request):
-    match = re.match('JOIN ([\u0021-\u007E]{4,32}) ([0-9]{1,3}(\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n', request)
+    match = re.match('JOIN ([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n', request)
     if match is not None:
         split_username = match.group(1)
         split_ip = match.group(2)
@@ -100,7 +100,7 @@ def join(request):
 # this function does the same thing as join() except without validating the username since that has
 # already been done
 def connect_request(request):
-    match = re.match('CONNECT ([\u0021-\u007E]{4,32}) ([0-9]{1,3}(\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n', request)
+    match = re.match('CONNECT ([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n', request)
     if match is not None:
         split_username = match.group(1)
         split_ip = match.group(2)
@@ -131,7 +131,7 @@ def populate_connections(request):
     user_list_lines = list(request[2:].split('\r\n'))
 
     while (len(user_list_lines) > 0):
-        match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n',
+        match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n',
                          user_list_lines.pop(0))
         if match is not None:
             user = match.group(1)
