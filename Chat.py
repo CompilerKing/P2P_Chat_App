@@ -116,7 +116,7 @@ def users(client_send):
         userList.append('USERS ')
         for key, value in connections.items():
             print("key = %s --> values = %s" % (key, value))
-            userList.append('' + key + ' ' + str(value[IP]) + ' ' + str(value[PORT]) + '\r\n')
+            userList.append(' ' + key + ' ' + str(value[IP]) + ' ' + str(value[PORT]) + '\r\n')
         userListStr = ''.join(userList)
         print(userListStr)
         client_send.send(userListStr.encode())
