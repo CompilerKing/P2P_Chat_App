@@ -436,10 +436,13 @@ if __name__ == '__main__':
         local_username = app_GUI.get_output_string()
 
     app_GUI.print_to_user("Username \"%s\" selected\n" % local_username)
-    app_GUI.print_to_user("\nPlease enter a port to listen on\n")
-    bind_port = int(app_GUI.get_output_string())
+    app_GUI.print_to_user("\nPlease enter ip and port to listen on\n")
+    response = app_GUI.get_output_string()
+    response_split = response.split(' ')
+    bind_ip = response_split[0]
+    bind_port = int(response_split[1])
 
-    app_GUI.print_to_user("Selected port %d\n" % bind_port)
+    app_GUI.print_to_user("Selected IP, port %s, %d\n" % (bind_ip ,bind_port))
 
     # Store self in connections
     connections[local_username] = [bind_ip, bind_port, None]
