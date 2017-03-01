@@ -193,7 +193,7 @@ def join_network(request):
     split_ip = split[2]
     split_port = split[3]
     print("Begin join attempt")
-    print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, int(split_port)))
+    print("<--- username = %s, ip = %s, port = %s" % (split_username, bind_ip, int(split_port)))
     client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_send.connect((split_ip, int(split_port)))
 
