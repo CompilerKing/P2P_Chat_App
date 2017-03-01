@@ -73,39 +73,45 @@ def validate_username(username):
 
 # Function join validates join request and user name, then sends a list of peers to new peer
 def join(request):
-    split = request.split(' ')
-    split_username = split[1]
-    split_ip = split[2]
-    split_port = split[3]
-    print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
-    client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_send.connect((split_ip, int(split_port)))
-    # check if the username is valid
-    valid = validate_username(split_username)
-    if valid == 0:
-        # good username, add to connections list
-        connections[split_username] = [split_ip, split_port, client_send]
-        print("Added: connections[%s] = %s" % (split_username, connections[split_username]))
-        return client_send, split_username
-    elif valid == -1:
-        client_send.send("INVALID USERNAME\r\n".encode())
-    elif valid == -2:
-        client_send.send("USERNAME TAKEN\r\n".encode())
+    match = re.match('JOIN ([\u0021-\u007E]{4,32}) ([0-9]{1,3}(\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n', request)
+    if match is not None:
+        split_username = match.group(1)
+        split_ip = match.group(2)
+        split_port = match.group(3)
+        print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
+        client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_send.connect((split_ip, int(split_port)))
+        # check if the username is valid
+        valid = validate_username(split_username)
+        if valid == 0:
+            # good username, add to connections list
+            connections[split_username] = [split_ip, split_port, client_send]
+            print("Added: connections[%s] = %s" % (split_username, connections[split_username]))
+            return client_send, split_username
+        elif valid == -1:
+            client_send.send("INVALID USERNAME\r\n".encode())
+        elif valid == -2:
+            client_send.send("USERNAME TAKEN\r\n".encode())
 
-    return False, None
+        return False, None
+    else:
+        print("\nIll formed request: %s" % request)
 
 # this function does the same thing as join() except without validating the username since that has
 # already been done
 def connect_request(request):
-    split = request.split(' ')
-    split_username = split[1]
-    split_ip = split[2]
-    split_port = split[3]
-    print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
-    client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_send.connect((split_ip, int(split_port)))
-    connections[split_username] = [split_ip, split_port, client_send]
-    return split_username
+    match = re.match('CONNECT ([\u0021-\u007E]{4,32}) ([0-9]{1,3}(\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n', request)
+    if match is not None:
+        split_username = match.group(1)
+        split_ip = match.group(2)
+        split_port = match.group(3)
+        print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
+        client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_send.connect((split_ip, int(split_port)))
+        connections[split_username] = [split_ip, split_port, client_send]
+        return split_username
+    else:
+        print("\nIll formed request: %s" % request)
 
 # Function users sends list of users to host connected to client_send socket
 def users(client_send):
@@ -122,32 +128,34 @@ def users(client_send):
 
 # Function to set connections dict
 def populate_connections(request):
-    user_list = list(request.split(' ')[1:])
+    user_list_lines = list(request[2:].split('\r\n'))
 
-    print(user_list)
+    while (len(user_list_lines) > 0):
+        match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(\.[0-9]{1,3}){3}) ([0-9]{1,5})\r\n',
+                         user_list_lines.pop(0))
+        if match is not None:
+            user = match.group(1)
+            c_ip = match.group(2)
+            c_port = match.group(3)
 
-    while (len(user_list) > 0):
+            if user not in connections.keys():
+                # Open socket
+                client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                client_send.connect((c_ip, int(c_port)))
 
-        user = user_list.pop(0)
-        c_ip = user_list.pop(0)
-        c_port = user_list.pop(0)
+                # Add to connections
+                connections[user] = [c_ip, c_port, client_send]
 
-        if user not in connections.keys():
-            # Open socket
-            client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_send.connect((c_ip, int(c_port)))
+                # Send connect request
+                client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
+        else:
+            print("\nIll formed USERS message" % request)
 
-            # Add to connections
-            connections[user] = [c_ip, c_port, client_send]
-
-            # Send connect request
-            client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
-
-        # Update gui to reflect new connections
-        app_GUI.set_user_list(connections.keys())
+    # Update gui to reflect new connections
+    app_GUI.set_user_list(connections.keys())
 
 # Function forwards data to local user
-def read_data(data_msg, sender_name, addr):
+def read_data(data_msg, sender_name):
     # Check msg for charset violations
     # reg for any number of lines
     headers_reg = 'DATA\r\n([\n\u0020-\u007E\u0080-\u00FF]*\r\n)*\r\n'
