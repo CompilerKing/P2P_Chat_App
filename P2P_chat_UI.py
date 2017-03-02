@@ -89,7 +89,7 @@ class Chat_UI_Process(multiprocessing.Process):
 
     # Kills P2P client
     def kill_client(self):
-        self.user_out_queue.put("e")
+        self.user_out_queue.put("\u0001e")
         self.top.destroy()
 
     def run(self):

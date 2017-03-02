@@ -7,13 +7,11 @@
 # Sam Decanio
 # Philip Porter
 import multiprocessing
-from multiprocessing import Process
 import socket
 import threading
 import sys
 import re
 import datetime
-import functools
 import os
 from time import sleep
 
@@ -37,6 +35,7 @@ def handle_incoming_client(client, addr):
 
     # Default name for user before join or connect
     remote_username = addr[0]
+    got_name = False
 
     cont = True
     while cont:
@@ -44,20 +43,55 @@ def handle_incoming_client(client, addr):
         request = client.recv(4096).decode('utf-8')
         print("[*] Received: %s" % request)
         if request.startswith('JOIN'):
-            send = join(request)
-            if (send[0]) != False:
-                users(send[0])
-                remote_username = send[1]
+            # Join func handles JOIN from incoming client
+            # func newly opened socket and returns name of client
+            send, remote_username = join(request)
+            if send is not None:
+                users(send)
+                remote_username = send
+                got_name = True
+
         elif request.startswith('GET_USERS'):
             users(request)
+
         elif request.startswith('USERS'):
             populate_connections(request)
+
         elif request.startswith('CONNECT'):
             remote_username = connect_request(request)
+            got_name = True
+
         elif request.startswith('DATA'):
+            if not got_name:
+                # Lookup name via peer dict
+                for key in connections.keys():
+                    if (connections[key][IP] == addr[0]) & (connections[key][PORT] == addr[1]):
+                        # Found name
+                        remote_username = key
+                        got_name = True
+                # If true, connected host is sending data before any other contact
+                if not got_name:
+                    remote_username = "ANON_" + remote_username
+
             read_data(request, remote_username)
-        else:
-            sleep(1)
+        elif request == "LEAVE\r\n":
+            # Remove entry from dict
+            connections_lock.acquire()
+            connections.pop(remote_username,None)
+            connections_lock.release()
+
+            # Update user list
+            app_GUI.print_to_user("\n-- %s -- LEAVES CHAT\n" % remote_username)
+            app_GUI.set_user_list(connections.keys())
+
+            #Terminate thread and close socket
+            client.close()
+            cont = False
+
+        # Terminate thread and close socket
+        elif request == "":
+            client.close()
+            cont = False
 
 def validate_username(username):
     if username in connections.keys():
@@ -78,6 +112,8 @@ def join(request):
         split_username = match.group(1)
         split_ip = match.group(2)
         split_port = match.group(3)
+
+        print("Server-request: JOIN")
         print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
         client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_send.connect((split_ip, int(split_port)))
@@ -89,13 +125,20 @@ def join(request):
             print("Added: connections[%s] = %s:%d" % (split_username,
                                                       connections[split_username][IP],
                                                       connections[split_username][PORT]))
+
+            # Update list of users
+            app_GUI.set_user_list(connections.keys())
+
             return client_send, split_username
         elif valid == -1:
             client_send.send("INVALID USERNAME\r\n".encode())
+            print("JOIN failure, username invalid.")
         elif valid == -2:
             client_send.send("USERNAME TAKEN\r\n".encode())
+            # Error
+            print("JOIN failure, username taken.")
 
-        return False, None
+        return None, ""
     else:
         print("\nIll formed request: %s" % request)
 
@@ -110,6 +153,8 @@ def connect_request(request):
         print("<--- username = %s, ip = %s, port = %s" % (split_username, split_ip, split_port))
         client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_send.connect((split_ip, int(split_port)))
+
+
         connections[split_username] = [split_ip, int(split_port), client_send]
         return split_username
     else:
@@ -117,7 +162,7 @@ def connect_request(request):
 
 # Function users sends list of users to host connected to client_send socket
 def users(client_send):
-    print("users called.")
+    print("Users called:\n")
     # this will display a list of users (basically iterate the dictionary)
     try:
         userListStr = "USERS "
@@ -125,7 +170,7 @@ def users(client_send):
         for key in connections.keys():
             userListStr += "%s %s %d\r\n" % (key, connections[key][IP], connections[key][PORT])
 
-        print(userListStr)
+        print("Sent list:\n" + userListStr)
         client_send.send(userListStr.encode())
         return True
     except Exception:
@@ -133,12 +178,14 @@ def users(client_send):
 
 # Function to set connections dict
 def populate_connections(request):
+
+    # Removes head of message, splits by EOL and removes last null entry from list of lines
     user_list_lines = request.replace('USERS ', '').split("\r\n")[:-1]
 
     print(user_list_lines)
 
-    cont = True
-    while (len(user_list_lines) > 0) and cont:
+    cont_readUsers = True
+    while (len(user_list_lines) > 0) and cont_readUsers:
         match = re.match('([\u0021-\u007E]{4,32}) ([0-9]{1,3}(?:\.[0-9]{1,3}){3}) ([0-9]{1,5})',
                          user_list_lines.pop(0))
         if match is not None:
@@ -155,10 +202,11 @@ def populate_connections(request):
                 connections[user] = [c_ip, int(c_port), client_send]
 
                 # Send connect request
-                client_send.send(("CONNECT " + local_username + " " + c_ip + " " + c_port + "\r\n").encode())
+                client_send.send(("CONNECT " + local_username + " " + bind_ip + " " + str(bind_port) + "\r\n").encode())
+
         else:
             print("\nIll formed USERS message %s" % request)
-            cont = False
+            cont_readUsers = False
 
     # Update gui to reflect new connections
     app_GUI.set_user_list(connections.keys())
@@ -172,7 +220,7 @@ def read_data(data_msg, sender_name):
 
     match = re.match(data_message_reg, data_msg)
     if match is not None:
-        app_GUI.print_to_user(("\n[%s]:"%sender_name) + match.group(2).
+        app_GUI.print_to_user(("\n\n[%s]:"%sender_name) + match.group(2).
               replace("\n", "").  # Removes all newlines
               replace("\r", "\n"))  # Makes carriage returns newlines
         # This cleans up output to GUI
@@ -186,36 +234,51 @@ def read_data(data_msg, sender_name):
 # Defined Client functions
 # /////////////////////////
 def list_users():
-    app_GUI.print_to_user("\n" + functools.reduce(lambda x,y: "\n" + x +"\n" + y, connections.keys()))
+    # Add header to list
+    user_list_msg = "\nUser List:\n"
+
+    # Make list
+    for key in connections.keys():
+        user_list_msg += "%-32s %15s %d\r\n" % (key, connections[key][IP], connections[key][PORT])
+
+    # Print to GUI
+    app_GUI.print_to_user(user_list_msg + "\n\r")
 
 def join_network(request):
     split = request.split(' ')
-    split_username = split[1]
-    split_ip = split[2]
-    split_port = split[3]
+    split_ip = split[1]
+    split_port = split[2]
     print("Begin join attempt")
-    print("<--- username = %s, ip = %s, port = %s" % (split_username, bind_ip, int(bind_port)))
+    print("<--- username = %s, ip = %s, port = %s" % (local_username, bind_ip, int(bind_port)))
     client_send = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_send.connect((split_ip, int(split_port)))
 
-    #update local username
-    local_username = split_username
 
-    # good username, send join request
-    join_msg = "JOIN " + split_username + " " + bind_ip + " " + str(bind_port) + "\r\n"
+    join_msg = "JOIN " + local_username + " " + bind_ip + " " + str(bind_port) + "\r\n"
     client_send.send(join_msg.encode())
     client_send.close()
 
     return True
 
-def list_chatrooms():
-    print("DERP")
+def exit_client():
+    # Send leave to all peers
+    leave_client()
 
-def enter_chatroom():
-    print("DERP")
+    # kill thread
+    sys.exit()
 
-def exit_chatroom():
-    print("DERP")
+def leave_client():
+    # Send leave to all peers
+    connections_lock.acquire()
+    for key in connections.keys():
+        if connections[key][SOCKET] is not None and key is not local_username:
+            connections[key][SOCKET].send("LEAVE\r\n".encode())
+            # Close socket
+            connections[key][SOCKET].close()
+
+    connections_lock.release()
+    # update client list
+    app_GUI.set_user_list(connections.keys())
 
 # Helper func
 # Generates basic SMTP message string using content "msg" and list of type string "headers"
@@ -268,7 +331,7 @@ def send_all(msg):
 
         # Iterate over all known peers
         for key in connections.keys():
-            if key is not local_username:
+            if key != local_username:
                 connections[key][SOCKET].send(smtp_msg.encode())
 
         # Release lock on connections
@@ -304,20 +367,13 @@ def send_user(msg, user):
         app_GUI.print_to_user("\nERROR: Message contains invalid characters\n")
         return -1
 
-
-def set_listen_port(port):
-    print("DERP")
-
-def toggle_privacy_status():
-    if "PRIVATE" in headers:
-        headers.remove("PRIVATE")
-        app_GUI.print_to_user("\nUser now public.\n")
-    else:
-        headers.insert(0,"PRIVATE")
-        app_GUI.print_to_user("\nUser now Private.\n")
-
 def ignore_user(username):
-    print("DERP")
+    if username in ignored_users:
+        ignored_users.remove(username)
+        app_GUI.print_to_user("\nUser \"%s\" Now not ignored.")
+    else:
+        ignored_users.insert(0, username)
+        app_GUI.print_to_user("\nUser \"%s\" Now ignored.")
 
 # END client functions
 
@@ -330,36 +386,54 @@ def handle_user():
 
     while cont:
         data = app_GUI.get_output_string()
-        print("INPUT FROM GUI \"" + data + "\"")
+
+        if data == "\u0001e":
+            # GUI force exit
+            exit_client()
+        else:
+            print("INPUT FROM GUI \"" + data + "\"")
 
         if data == "h":
             app_GUI.print_to_user("\nHELP list of commands\r\n")
-            app_GUI.print_to_user("-h : ​List all commands \r\n")
-            app_GUI.print_to_user("-l : ​List all users currently online\r\n")
-            app_GUI.print_to_user("-lc​: List all chat rooms\r\n")
-            app_GUI.print_to_user("-j​: <username, IP> join chat network at IP\r\n")
-            app_GUI.print_to_user("-c <chatroom name>:​ enter a specified chatroom\r\n")
-            app_GUI.print_to_user("-ce <chatroom name>:​ Disconnect from specified chat room\r\n")
-            app_GUI.print_to_user("-e :​ Exit client\r\n")
-            app_GUI.print_to_user("-a <contents> : ​Sends message to all connected peers\r\n")
-            app_GUI.print_to_user("-s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
-            app_GUI.print_to_user("-o <port> : ​Specify the port to listen on\r\n")
-            app_GUI.print_to_user("-p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
-            app_GUI.print_to_user("-i “username” : ​Ignore a specific user.\r\n\r\n")
+            app_GUI.print_to_user("h : ​List all commands \r\n")
+            app_GUI.print_to_user("l : ​List all users currently online\r\n")
+            app_GUI.print_to_user("lc​: List all chat rooms\r\n")
+            app_GUI.print_to_user("j​: <IP, PORT> join chat network at IP\r\n")
+            app_GUI.print_to_user("c <chatroom name>:​ enter a specified chatroom\r\n")
+            app_GUI.print_to_user("ce <chatroom name>:​ Disconnect from specified chat room\r\n")
+            app_GUI.print_to_user("e :​ Exit client\r\n")
+            app_GUI.print_to_user("ec: Leave chat\r\n")
+            app_GUI.print_to_user("a <contents> : ​Sends message to all connected peers\r\n")
+            app_GUI.print_to_user("s <recipient> <contents> : ​Send the specified contents to the listed recipient(s)\r\n")
+            app_GUI.print_to_user("p:​ Toggle between being listed as p​rivate or being listed as p​ublic\r\n")
+            app_GUI.print_to_user("i “username” : ​Ignore a specific user.\r\n\r\n")
 
         elif data == "e":
-            sys.exit()
+            # user exit
+            exit_client()
+
+        elif data == "ec":
+            leave_client()
 
         elif data == "l":
             list_users()
+
+        elif data == "lc":
+            app_GUI.print_to_user("")
 
         elif data.startswith("j"):
             # Call join network func
             join_network(data)
 
+        elif data.startswith("c"):
+            app_GUI.print_to_user("\nEnter chatroom, not implemented\n")
+
+        elif data.startswith("ce"):
+            app_GUI.print_to_user("\nExit chatroom, not implemented\n")
+
         elif data.startswith('a'):
             # Get message
-            message = data.split(' ')[1]
+            message = data[2:]
 
             # Send to all connections
             send_all(message)
@@ -369,45 +443,36 @@ def handle_user():
             print("Send to all users.\n")
 
         elif data.startswith('s'):
+            data_split = data.split(' ')
+
             # Get username
-            username = data.split(' ')[1]
+            username = data_split[1]
 
             # Get message
-            message = data.split(' ')[2]
+            message = ''.join(data_split[2:])
 
             # Send message
             send_user(message, username)
 
-            # Client terminal echo
+            # Server terminal echo
             print("\nDate: " + message + ' (' + datetime.datetime.now().strftime('%H:%M:%S') + ')')
             print("\n" + username + ": " + data[2:] + "")
 
-        elif data.startswith('o'):
-            new_port = int(data.split(' ')[1])
-            set_listen_port(new_port)
-
         elif data.startswith('p'):
-            print("\nToggle privacy\n")
+            app_GUI.print_to_user("\nToggle privacy, not implemented\n")
             #private toggle...
 
-            toggle_privacy_status()
-
         elif data.startswith('i'):
-            print("Ignore feature\r\n")
-            #ignore command...
-
             username = data.split(' ')[1]
             ignore_user(username)
         else:
-            print("\nINVALID selection\n")
+            print("\nINVALID selection \"%s\"\n" % data)
             app_GUI.print_to_user("\nEntry: \"" + data + "\" is invalid")
 
 if __name__ == '__main__':
+    # Default values
     bind_ip = "127.0.0.1"
     bind_port = 9977
-
-    if os.name != 'nt':
-        multiprocessing.set_start_method('forkserver')
 
     # Storage for peers
     connections = {}
@@ -425,6 +490,11 @@ if __name__ == '__main__':
     PORT = 1
     SOCKET = 2
 
+    # Fix for Unix like operating systems
+    # Prevents crash of GUI process
+    if os.name != 'nt':  # If not Windows
+        multiprocessing.set_start_method('forkserver')
+
     # GUI process
     app_GUI = Chat_UI_Process()
     app_GUI.start()
@@ -434,14 +504,29 @@ if __name__ == '__main__':
     app_GUI.print_to_user("Please enter your username\n")
     local_username = app_GUI.get_output_string()
 
-    while validate_username(local_username) is False:
-        app_GUI.print_to_user("Selected username invalid\n")
-        app_GUI.print_to_user("Please enter your username\n")
+    # To allow exit from program without zombie process
+    if local_username == "\u0001e":
+        # Force exit
+        exit_client()
+
+    while validate_username(local_username) < 0:
+        app_GUI.print_to_user("Selected username is invalid\n")
+        app_GUI.print_to_user("\nPlease enter your username\n")
         local_username = app_GUI.get_output_string()
 
+        # Graceful exit
+        if local_username == "\u0001e":
+            # Force exit
+            exit_client()
+
     app_GUI.print_to_user("Username \"%s\" selected\n" % local_username)
-    app_GUI.print_to_user("\nPlease enter ip and port to listen on\n")
+    app_GUI.print_to_user("\nPlease enter [ip port] to listen on\n")
     response = app_GUI.get_output_string()
+
+    if response == "\u0001e":
+        # Force exit
+        exit_client()
+
     response_split = response.split(' ')
     bind_ip = response_split[0]
     bind_port = int(response_split[1])
@@ -462,11 +547,11 @@ if __name__ == '__main__':
     print("[*] Listening on %s:%d" % (bind_ip, bind_port))
 
     # Thread for handling incoming connections :: Server thread
-    incoming_handler = threading.Thread(target=handle_incoming, args=())
+    incoming_handler = threading.Thread(target=handle_incoming, args=(), daemon=True)
     incoming_handler.start()
 
     # Thread for handling user input           :: Local User interface Thread
-    user_handler = threading.Thread(target=handle_user, args=())
+    user_handler = threading.Thread(target=handle_user, args=(), daemon=True)
     user_handler.start()
 
     # Signal client readiness to user
@@ -475,9 +560,6 @@ if __name__ == '__main__':
     # Join process
     app_GUI.join()
 
-    # Join threads
-    incoming_handler.join()
-    user_handler.join()
 
 
 
